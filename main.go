@@ -6,10 +6,24 @@ import (
   "unicode/utf8"
 )
 
-type Token int
+type TokenType int
+
+type Token struct {
+  Type TokenType
+  Value string
+}
+
+func (t Token) String() string {
+  switch t.Type {
+  case TokenEOF:
+    return "EOF"
+  default:
+    return fmt.Sprintf("<%s>", t.Value)
+  }
+}
 
 const (
-  TokenEOF Token = iota
+  TokenEOF TokenType = iota
   TokenWhitespace
   TokenColon
   TokenSemicolon
@@ -21,6 +35,10 @@ const (
 type Lexer struct {
   s string
   i int64
+}
+
+func (l *Lexer) Emit(t TokenType, v string) *Token {
+  return &Token{t, v}
 }
 
 func (l *Lexer) Next() (ch rune, size int, err error) {
@@ -36,33 +54,24 @@ func (l *Lexer) String() string {
   return fmt.Sprintf("str: %s, ind: %d", l.s, l.i)
 }
 
-func (l *Lexer) Lex() Token {
-  for {
-    r, _, err := l.Next()
-    if err == io.EOF {
-      fmt.Println("EOF-TOKEN")
-      return TokenWhitespace
-    }
-    switch r {
-    case ' ', '\t', '\n':
-      fmt.Println("WHITESPACE-TOKEN")
-      return TokenWhitespace
-    case '{':
-      fmt.Println("{-TOKEN")
-      return TokenLeftCurly
-    case '}':
-      fmt.Println("}-TOKEN")
-      return TokenRightCurly
-    case ':':
-      fmt.Println("COLON-TOKEN")
-      return TokenColon
-    case ';':
-      fmt.Println("SEMICOLON-TOKEN")
-      return TokenSemicolon
-    default:
-      fmt.Println("OTHER-TOKEN")
-      return TokenString
-    }
+func (l *Lexer) Lex() *Token {
+  r, _, err := l.Next()
+  if err == io.EOF {
+    return l.Emit(TokenEOF, "")
+  }
+  switch r {
+  case ' ', '\t', '\n':
+    return l.Emit(TokenWhitespace, string(r))
+  case '{':
+    return l.Emit(TokenLeftCurly, string(r))
+  case '}':
+    return l.Emit(TokenRightCurly, string(r))
+  case ':':
+    return l.Emit(TokenColon, string(r))
+  case ';':
+    return l.Emit(TokenSemicolon, string(r))
+  default:
+    return l.Emit(TokenString, string(r))
   }
 }
 
@@ -71,5 +80,11 @@ func NewLexer(s string) *Lexer { return &Lexer{s, 0} }
 func main() {
   str := "body { background-color: red; }"
   lexer := NewLexer(str)
-  lexer.Lex()
+  for {
+    token := lexer.Lex()
+    fmt.Println(token)
+    if token.Type == TokenEOF {
+      break
+    }
+  }
 }
